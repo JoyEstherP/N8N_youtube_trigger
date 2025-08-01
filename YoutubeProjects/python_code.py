@@ -125,6 +125,7 @@
 # output_path = os.path.join(os.path.dirname(video_path), "output_no_magick.mp4")
 # final.write_videofile(output_path, codec="libx264")
 
+import random
 from PIL import Image, ImageDraw, ImageFont
 from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip, concatenate_videoclips
 import numpy as np
@@ -184,7 +185,14 @@ for i in range(1, len(words) + 1):
     rect_y0 = y - padding
     rect_x1 = x + text_width + padding
     rect_y1 = y + total_height + padding
-    draw.rectangle([rect_x0, rect_y0, rect_x1, rect_y1], fill=(0, 0, 0, 150))  # Semi-transparent box
+    # draw.rectangle([rect_x0, rect_y0, rect_x1, rect_y1], fill=(0, 0, 0, 150))  # Semi-transparent box
+    random_color = (
+        random.randint(100, 255),
+        random.randint(100, 255),
+        random.randint(100, 255),
+        180
+    )
+    draw.rectangle([rect_x0, rect_y0, rect_x1, rect_y1], fill=random_color)
 
     # --- Draw each line of text ---
     for j, line in enumerate(lines):
@@ -214,4 +222,3 @@ safe_filename = output_filename.strip().replace(" ", "_") + ".mp4"
 output_path = os.path.join(output_dir, safe_filename)
 
 final.write_videofile(output_path, codec="libx264", preset="ultrafast", fps=24)
-
