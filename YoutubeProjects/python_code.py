@@ -134,9 +134,11 @@ import os
 import textwrap
 # --- Input arguments ---
 video_path = sys.argv[1]
+# quote = sys.argv[2]
+# output_filename = sys.argv[3]  # Example: "quote_clip_01" (no .mp4)
 quote = sys.argv[2]
-output_filename = sys.argv[3]  # Example: "quote_clip_01" (no .mp4)
-
+book_name = sys.argv[3]  # New argument
+output_filename = sys.argv[4]
 # --- Load video ---
 clip = VideoFileClip(video_path)
 
@@ -147,6 +149,64 @@ font_color = "white"
 bg_color = (0, 0, 0, 0)
 video_size = (clip.w, clip.h)
 duration_per_word = 0.4
+# --- Book name overlay ---
+book_font_size = 42
+book_font_color = "white"
+book_padding = 40
+
+book_img = Image.new("RGBA", video_size, bg_color)
+draw_book = ImageDraw.Draw(book_img)
+book_font = ImageFont.truetype(font_path, book_font_size)
+
+book_text_bbox = draw_book.textbbox((0, 0), book_name, font=book_font)
+book_text_width = book_text_bbox[2] - book_text_bbox[0]
+book_x = (video_size[0] - book_text_width) // 2
+book_y = book_padding
+
+draw_book.text((book_x, book_y), book_name, font=book_font, fill=book_font_color)
+
+# Convert to ImageClip
+book_clip = ImageClip(np.array(book_img)).set_duration(clip.duration)
+# --- Book name overlay with background box ---
+book_font_size = 42
+book_font_color = "white"
+# book_bg_color = (random.randint(100, 255), random.randint(100, 255), random.randint(100, 255), 200)  # Semi-transparent color
+book_bg_color = (40, 40, 40, 200) 	# (25, 70, 150, 220) # RGBA = solid teal-blue with transparency
+
+book_padding_x = 40
+book_padding_y = 20
+book_corner_radius = 20
+
+# Create transparent image
+book_img = Image.new("RGBA", video_size, bg_color)
+draw_book = ImageDraw.Draw(book_img)
+book_font = ImageFont.truetype(font_path, book_font_size)
+
+# Measure text
+book_text_bbox = draw_book.textbbox((0, 0), book_name, font=book_font)
+book_text_width = book_text_bbox[2] - book_text_bbox[0]
+book_text_height = book_text_bbox[3] - book_text_bbox[1]
+
+# Calculate box position (centered at top)
+box_x = (video_size[0] - book_text_width - 2 * book_padding_x) // 2
+box_y = 30  # Distance from top
+box_width = book_text_width + 2 * book_padding_x
+box_height = book_text_height + 2 * book_padding_y
+
+# Draw rounded background box
+draw_book.rounded_rectangle(
+    [box_x, box_y, box_x + box_width, box_y + box_height],
+    radius=book_corner_radius,
+    fill=book_bg_color
+)
+
+# Draw text on top of the box
+text_x = box_x + book_padding_x
+text_y = box_y + book_padding_y
+draw_book.text((text_x, text_y), book_name, font=book_font, fill=book_font_color)
+
+# Convert to MoviePy ImageClip
+book_clip = ImageClip(np.array(book_img)).set_duration(clip.duration)
 
 words = quote.split()
 image_clips = []
@@ -170,6 +230,48 @@ for i in range(1, len(words) + 1):
             lines.append(current_line)
             current_line = word
     lines.append(current_line)
+    # --- Channel name with icon, background box ---
+    channel_name = "Echoes of Great Minds"  # Add emoji or icon here
+    channel_font_size = 36
+    channel_font_color = "white"
+    channel_bg_color = (40, 40, 40, 200)  # Dark charcoal with alpha
+    channel_padding_x = 20
+    channel_padding_y = 10
+    channel_corner_radius = 15
+
+    # Create transparent image
+    img_channel = Image.new("RGBA", video_size, bg_color)
+    draw_channel = ImageDraw.Draw(img_channel)
+    channel_font = ImageFont.truetype(font_path, channel_font_size)
+
+    # Measure text size (with emoji)
+    text_bbox = draw_channel.textbbox((0, 0), channel_name, font=channel_font)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+
+    # Box position (bottom right)
+    box_x = video_size[0] - text_width - 2 * channel_padding_x - 20
+    # box_y = video_size[1] - text_height - 2 * channel_padding_y - 20
+    box_y = video_size[1] - text_height - 2 * channel_padding_y - 100  # Raised by ~80px
+
+    box_width = text_width + 2 * channel_padding_x
+    box_height = text_height + 2 * channel_padding_y
+
+    # Draw background box
+    draw_channel.rounded_rectangle(
+        [box_x, box_y, box_x + box_width, box_y + box_height],
+        radius=channel_corner_radius,
+        fill=channel_bg_color
+    )
+
+    # Draw text over the box
+    text_x = box_x + channel_padding_x
+    text_y = box_y + channel_padding_y
+    draw_channel.text((text_x, text_y), channel_name, font=channel_font, fill=channel_font_color)
+
+    # Convert to MoviePy ImageClip
+    channel_clip = ImageClip(np.array(img_channel)).set_duration(clip.duration)
+
 
     # --- Measure text block height ---
     line_height = font.getbbox("Ay")[3] + 10
@@ -214,10 +316,15 @@ if typing_clip.duration < clip.duration:
     last_frame = image_clips[-1].set_duration(clip.duration - typing_clip.duration)
     typing_clip = concatenate_videoclips([typing_clip, last_frame])
 
-final = CompositeVideoClip([clip, typing_clip])
+# final = CompositeVideoClip([clip, typing_clip])
+# final = CompositeVideoClip([clip, typing_clip, channel_clip])
+final = CompositeVideoClip([clip, typing_clip, channel_clip, book_clip])
+
+
 
 # --- Output ---
 output_dir = os.path.dirname(video_path)
+output_dir= output_dir + '/ready'
 safe_filename = output_filename.strip().replace(" ", "_") + ".mp4"
 output_path = os.path.join(output_dir, safe_filename)
 
